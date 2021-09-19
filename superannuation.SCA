@@ -1,0 +1,1947 @@
+SCCTEXT Version 4.0.0.2
+PLATFORM C(8,0),UNIQUEID C(10,0),TIMESTAMP N(10,0),CLASS M(4,0),CLASSLOC M(4,0),BASECLASS M(4,0),OBJNAME M(4,0),PARENT M(4,0),PROPERTIES M(4,0),PROTECTED M(4,0),METHODS M(4,0),OBJCODE M(4,0),OLE M(4,0),OLE2 M(4,0),RESERVED1 M(4,0),RESERVED2 M(4,0),RESERVED3 M(4,0),RESERVED4 M(4,0),RESERVED5 M(4,0),RESERVED6 M(4,0),RESERVED7 M(4,0),RESERVED8 M(4,0),USER M(4,0)
+1252
+
+[ RECORD]
+[PLATFORM] COMMENT 
+[UNIQUEID] Screen    
+[START RESERVED1]
+VERSION =   3.00[END RESERVED1]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] dataenvironment
+[BASECLASS] dataenvironment
+[OBJNAME] Dataenvironment
+[START PROPERTIES]
+DataSource = .NULL.
+Height = 200
+Left = 1
+Name = "Dataenvironment"
+Top = 220
+Width = 520
+[END PROPERTIES]
+[START RESERVED2]
+1[END RESERVED2]
+[START RESERVED4]
+1[END RESERVED4]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP86
+[CLASS] formdef
+[CLASSLOC] ..\..\..\src\classes\formdef.vcx
+[BASECLASS] form
+[OBJNAME] frmSuperannuation
+[START PROPERTIES]
+BindControls = .F.
+BorderStyle = 1
+Caption = "Superannuation Maintenance"
+DoCreate = .T.
+Height = 540
+Name = "frmSuperannuation"
+Width = 633
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE Activate
+DO SETKEYCLEAR IN utility.prg
+
+ON KEY LABEL F2		*
+ON KEY LABEL F4		*
+ON KEY LABEL F5		*
+ON KEY LABEL F6		*
+ON KEY LABEL F7		*
+ON KEY LABEL F8		*
+ON KEY LABEL F9		*
+ON KEY LABEL F10	*
+ON KEY LABEL PGDN	*
+ON KEY LABEL PGUP	*
+ON KEY LABEL ESC	*
+
+ON KEY LABEL F7 _SCREEN.ACTIVEFORM.PREVPAGE()
+ON KEY LABEL F8 _SCREEN.ACTIVEFORM.NEXTPAGE()
+ON KEY LABEL F9 _SCREEN.ACTIVEFORM.FINDPRINTF9()
+ON KEY LABEL F4 _SCREEN.ACTIVEFORM.ADDLINEF4()
+ON KEY LABEL F6 _SCREEN.ACTIVEFORM.DELETELINEF6()
+ON KEY LABEL ESC _SCREEN.ACTIVEFORM.ESCPRESS(.F.,.F.)
+ON KEY LABEL F10 _SCREEN.ACTIVEFORM.SAVEBYF10()
+
+ON KEY LABEL F1 OnlineHelp(10060) 
+
+
+
+ENDPROC
+PROCEDURE Deactivate
+DO SETKEYCLEAR IN utility.prg
+ENDPROC
+PROCEDURE Destroy
+USE IN SELECT("curSuper")
+USE IN SELECT("curSuperannuationItemsChanged")
+USE IN SELECT("curSupercon")		&& 06/11/2008 CMGM
+ENDPROC
+PROCEDURE Init
+ACTIVATE WINDOW (THIS.NAME) IN SCREEN NOSHOW
+DO FORM superannuation_lookup.scx TO llExitWithoutAction
+IF llExitWithoutAction
+	* cancelled the superannuation lookout form
+	RETURN .f.
+	ThisForm.Release()
+ENDIF 
+
+ThisForm.EnableDisable()
+
+BINDEVENT(ThisForm,"lDataChanged",ThisForm,"onChanged",1)
+
+ThisForm.BindControls = .T.
+
+thisform.setlimitcontrols()
+
+
+
+
+
+
+
+
+ENDPROC
+PROCEDURE Load
+IF NOT USED("supercon")
+	USE supercon IN 0
+ENDIF 
+
+IF NOT USED("super")
+	USE super IN 0
+ENDIF 
+
+IF NOT USED("costcent")
+	USE costcent IN 0
+ENDIF 
+
+SET PROCEDURE TO superannuation.prg ADDITIVE 
+GetSuperannuations("curSuper")
+CURSORSETPROP("Buffering",5,"curSuper")
+
+CREATE CURSOR curSuperannuationItemsChanged (type C(16), typeCode N(4))
+
+CREATE CURSOR curSupercon (sccode I, scalpha C(8), scname C(50), sctype C(25), sctax L, scdesc M)
+
+Thisform.ShowTips = .T.
+=leanenglogevent(comacc.datadir,comacc.usercode,ALLTRIM(thisform.Caption))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ENDPROC
+PROCEDURE Refresh
+WITH ThisForm
+	.cmdLiabilities.Visible = .T.
+	DO CASE 
+		* 06/11/2008 CMGM
+		CASE ISBLANK(curSuper.paytype) AND EMPTY(curSuper.typecode)
+			* newly added record. disable all controls except pay type.			
+			.EnableInputControls(.F.)
+			.cmbPaymentType.Enabled = .T.
+			.adding = .T.
+
+		CASE NOT ISBLANK(curSuper.paytype) AND EMPTY(curSuper.typecode)
+			* newly added record and after a pay type has been selected.
+			* need to initialise superannuation type for validation
+			IF LOWER(ALLTRIM(curSuper.paytype)) = "employee superannuation"
+				.cmbSuperannuationType.Value = "Deduction"
+			ELSE
+				.cmbSuperannuationType.Value = "Non-cash benefit"
+			ENDIF
+
+			.EnableInputControls(.F.)			
+			.txtCode.Enabled = .T.			
+			
+		CASE NOT ISBLANK(curSuper.paytype) AND NOT EMPTY(curSuper.typecode)
+			* either adding mode after we had entered pay type and superannuation code OR editing mode
+			* Initially enable all controls
+			.EnableInputControls(.T.)
+			.txtAmount.Enabled = (LOWER(ALLTRIM(curSuper.cmethod))="fixed dollar amount")
+			.txtRate.Enabled = (LOWER(ALLTRIM(curSuper.cmethod))="% of gross pay")
+			
+			* now enable/disable based on settings chosen
+			.cmdLiabilities.Enabled = .T.			
+			.cmbPaymentType.Enabled = .F.
+			.txtCode.Enabled = .F.
+	ENDCASE 	
+ENDWITH 
+
+IF curSuper.supercon = 2
+	Thisform.chkRESC.Value = .t.
+	Thisform.chkRESC.Enabled = .f.
+ELSE
+	Thisform.chkRESC.Enabled = .t.
+ENDIF 
+
+ENDPROC
+PROCEDURE Unload
+DO SETKEYCLEAR IN UTILITY.PRG
+DODEFAULT()
+ENDPROC
+PROCEDURE addlinef4
+IF ThisForm.Save()
+	APPEND BLANK IN curSuper
+	
+	* 11/11/2008 CMGM  Default supercon to 0; Causes invalid ToolTipText when blank
+	* 11/11/2008 CMGM  * contribution type to be defaulted to SG. see #40165
+	* 11/11/2008 CMGM  REPLACE cMethod WITH "Fixed Dollar Amount", supercon WITH 1 IN curSuper	
+	REPLACE cMethod WITH "Fixed Dollar Amount", supercon WITH 0, SGMinEarn WITH 0, SGMaxEarn WITH 0 IN curSuper	
+	
+	Thisform.adding = .T.
+	ThisForm.EnableDisable()
+	ThisForm.Refresh()
+*	ThisForm.cmbSuperannuationType.SetFocus()		&& 06/11/2008 CMGM
+	ThisForm.cmbPaymentType.SetFocus()				&& 06/11/2008 CMGM
+	
+ENDIF 
+ENDPROC
+PROCEDURE butcancel
+TABLEREVERT(.t.,"curSuper")
+IF thisform.adding 
+	DO FORM superannuation_lookup.scx TO llExitWithoutAction
+	IF llExitWithoutAction
+		* cancelled the superannuation lookout form
+		SELECT type FROM curSuper WHERE NOT curSuper.deleted INTO ARRAY aTemp
+		IF _tally = 0
+			* occurs when we do not have defined any superanuations and adding new record->cancel
+			ThisForm.Release()
+		ENDIF 
+		IF EOF("curSuper") 
+			GO BOTTOM IN curSuper
+		ENDIF 
+		IF BOF("curSuper")
+			GO TOP IN curSuper
+		ENDIF 
+	ENDIF 
+ENDIF 
+
+IF ISBLANK (curSuper.paytype) AND EMPTY(curSuper.typecode) 		&& 06/11/2008 CMGM
+	* User still chooses add new
+	ThisForm.EnableDisable()
+	Thisform.Refresh()	
+	ThisForm.cmbPaymentType.SetFocus()							&& 06/11/2008 CMGM
+	RETURN .F.
+ELSE
+	* User select an existing 
+	TABLEREVERT(.t.,"cursuper")
+	Thisform.ldatachanged = .F.
+	Thisform.adding = .F.
+	Thisform.enabledisable()
+	Thisform.Refresh()
+ENDIF 
+
+
+ENDPROC
+PROCEDURE changed
+
+LPARAMETERS LCALIAS
+
+* LCALIAS is the table we are operating on, note second tables in claims (accstaff & accsetup)
+LOCAL RECORD_STATUS,OLDALIAS,CURRENTRECORD,LLRETVAL
+
+OLDALIAS = ALIAS()
+
+* Store the current record
+SELECT (LCALIAS)
+
+* The following line deals successfully with empty cursors
+CURRENTRECORD = IIF(EOF(LCALIAS),RECCOUNT(LCALIAS),RECNO(LCALIAS))
+
+* Check all records to see if they've changed
+IF GETNEXTMODIFIED(0) <> 0
+	* only need to point back to original record if we have moved
+	GOTO CURRENTRECORD
+	LLRETVAL = .T.
+ENDIF
+
+RETURN LLRETVAL
+
+ENDPROC
+PROCEDURE controlinteractivechange
+LPARAMETERS loControl
+IF NOT ThisForm.lDataChanged 
+	ThisForm.lDataChanged = .T.
+	ThisForm.EnableDisable()
+ENDIF
+ENDPROC
+PROCEDURE deletelinef6
+
+DO CASE 
+	CASE LOWER(ALLTRIM(curSuper.type))="deduction"
+		SELECT TOP 1 staff_code FROM paydeduc WHERE paydeduc.deductcode = cursuper.typecode ORDER BY staff_code INTO ARRAY aTemp		
+	CASE LOWER(ALLTRIM(curSuper.type))="non-cash benefit"
+		SELECT TOP 1 pnstaff FROM payncb WHERE payncb.pncode = cursuper.typecode ORDER BY pnstaff INTO ARRAY aTemp
+ENDCASE 
+IF _tally > 0
+	MESSAGEBOX("Superannuation has been used by an employee.",0+64,"Cannot delete")
+	RETURN  
+ENDIF 
+
+IF MESSAGEBOX("Do you want to delete this Superannuation?",4+64,"Delete Superannuation")=6
+	
+	REPLACE deleted WITH .T. in curSuper
+	ThisForm.Save()
+	
+	DO FORM superannuation_lookup.scx TO llExitWithoutAction
+	IF llExitWithoutAction
+		* cancelled the superannuation lookout form
+		ThisForm.Release()
+	ENDIF 
+	ThisForm.EnableDisable()
+	ThisForm.Refresh()
+ENDIF 
+ENDPROC
+PROCEDURE enabledisable
+WITH THISFORM
+	IF .adding OR .lDataChanged
+		.cntButtons.butExit.ENABLED = .F.
+		.cntButtons.butCancel.VISIBLE = .T.
+		.cntButtons.butAdd.VISIBLE = .F.
+		.cntButtons.butSave.VISIBLE = .T.
+        	.cntButtons.butDelete.VISIBLE = .F.		
+	ELSE
+		.cntButtons.butExit.ENABLED = .T.
+		.cntButtons.butCancel.VISIBLE = .F.
+		.cntButtons.butAdd.VISIBLE = .T.
+		.cntButtons.butSave.VISIBLE = .F.
+		.cntButtons.butDelete.VISIBLE = .T.
+	ENDIF
+	
+	STORE curSuper.limitSuper TO ;
+		.txtLimitAmt.visible, ;
+		.lblPerWeek.visible, ;
+		.lblSuperLimitAmt.visible
+
+	STORE NOT curSuper.limitSuper TO ;   
+		.lblSGMinEarn.visible, ;
+		.lblSGMaxEarn.visible, ;
+		.txtMinSGEarn.visible, ;
+		.txtMaxSGEarn.visible, ;
+		.lblPerMonth.visible, ;
+		.lblPerQtr.visible
+
+	DO CASE
+	CASE curSuper.supercon = 1	
+		.chkLimitSuper.ENABLED = .t.
+	CASE curSuper.supercon > 1	
+		.chkLimitSuper.ENABLED = .f.
+		.chkLimitSuper.Value = .f.
+		.txtLimitAmt.Value = 0
+	OTHERWISE
+		.chkLimitSuper.ENABLED = .f.
+	ENDCASE
+ENDWITH
+
+
+ENDPROC
+PROCEDURE enableinputcontrols
+LPARAMETERS llEnable
+
+* enable/disable all controls used to input data on this form
+WITH ThisForm
+	.txtCode.Enabled = llEnable
+	.txtName.Enabled = llEnable
+	.cboCalculationMethod.Enabled = llEnable 
+	.cbosuperannuationProvider.Enabled = llEnable 
+	.cboContributionType.Enabled = llEnable 
+	.txtRate.Enabled = llEnable
+	.txtAmount.Enabled = llEnable 
+	.ConCostCentre.Enabled = llEnable 
+	.cmdLiabilities.Enabled = llEnable 
+	.chkRESC.Enabled = llEnable
+	.txtMinSGEarn.Enabled = llEnable
+	.txtMaxSGEarn.Enabled = llEnable
+	.txtLimitAmt.Enabled = llEnable
+	.chkLimitSuper.Enabled = llEnable 
+ENDWITH 
+
+ENDPROC
+PROCEDURE escpress
+PARAMETERS X,Y
+
+IF ThisForm.cntButtons.butCancel.Visible AND ThisForm.cntButtons.butCancel.Enabled
+	* Edit mode
+	IF NOT ThisForm.ButCancel()
+		RETURN 
+	ENDIF 
+ELSE
+	* Show mode
+	ThisForm.RecalculateOpenPays()
+	DODEFAULT(X,Y)
+ENDIF 
+
+thisform.setlimitcontrols()
+ENDPROC
+PROCEDURE findprintf9
+IF ThisForm.Save()	
+	DO FORM superannuation_lookup.scx TO llExitWithoutAction
+	IF llExitWithoutAction
+		* cancelled the superannuation lookout form
+		RETURN .F.
+	ENDIF 
+	
+	ThisForm.EnableDisable()
+	ThisForm.Refresh()
+ENDIF 
+ENDPROC
+PROCEDURE lookup
+LPARAMETERS laColumns, lcfilter
+LOCAL ARRAY laColumns(2, 2)
+laColumns(1, 1) = 'CODE'
+laColumns(1, 2) = 'Code'
+laColumns(2, 1) = 'NAME'
+laColumns(2, 2) = 'Name'
+
+lcAlias = ThisForm.cAlias
+lcField = ThisForm.cKeyField
+tcFilter = ".T."
+lcOrder = "code"
+lcFormCaption = 'Select ' + ThisForm.cDescription
+
+LOCAL lcColumn1Source, lcColumn1HeaderCaption, lcColumn2Source, lcColumn2HeaderCaption, lcColumn3Source, lcColumn3HeaderCaption, lcColumn4Source, lcColumn4HeaderCaption, lcColumn5Source, lcColumn5HeaderCaption, lcColumn6Source, lcColumn6HeaderCaption, lcColumn7Source, lcColumn7HeaderCaption, lcColumn8Source, lcColumn8HeaderCaption, lnCounter 
+
+* Transfer the data from the array parameter into the local variables (to be passed to the lookup class)
+FOR lnCounter = 1 TO MIN(8, ALEN(laColumns, 1))
+	STORE laColumns[lnCounter, 1] TO ("lcColumn" + TRANSFORM(lnCounter) + "Source")
+	STORE laColumns[lnCounter, 2] TO ("lcColumn" + TRANSFORM(lnCounter) + "HeaderCaption")
+ENDFOR
+
+* This private variable is required by the class.
+PRIVATE puReturnValue
+puReturnValue = .F.
+
+LOCAL loLookup
+loLookup = NEWOBJECT('cdeductions_add_filter_super', 'Lookup.VCX', "",lcAlias, lcField, tcFilter, lcOrder, lcFormCaption, ;
+	lcColumn1Source, lcColumn1HeaderCaption, ;
+	lcColumn2Source, lcColumn2HeaderCaption, ; 
+	lcColumn3Source, lcColumn3HeaderCaption, ; 
+	lcColumn4Source, lcColumn4HeaderCaption, ; 
+	lcColumn5Source, lcColumn5HeaderCaption, ; 
+	lcColumn6Source, lcColumn6HeaderCaption, ; 
+	lcColumn7Source, lcColumn7HeaderCaption, ; 
+	lcColumn8Source, lcColumn8HeaderCaption )
+	
+
+LOCAL lnLastKey, lnType, lcKey
+lcKey = ThisForm.cKeyField 
+lnLastKey = &lcKey
+lnType = deduct.type
+
+loLookup.Show()
+
+IF VARTYPE(puReturnValue)="N" AND puReturnValue > 0
+	LOCAL lnType, lnCode, lcName
+	SELECT type, code, name FROM deduct WHERE &lcKey = puReturnValue INTO CURSOR curSelectedDedcution
+	lnType = curSelectedDedcution.type
+	lnCode = curSelectedDedcution.code
+	lcName = curSelectedDedcution.name
+	USE IN SELECT("curSelectedDedcution")
+	IF lnType = 2
+		MESSAGEBOX("Cannot edit: " + TRANSFORM(lnCode) + " " + ALLTRIM(lcName) + " is a Deduction of type Superannuation.  If you want to edit this item, please select the Superannuation screen, from the Maintenance menu.",0+48,"Cannot edit")
+	ENDIF 
+ENDIF 
+
+IF lnType = 2 AND VARTYPE(puReturnValue) = "N" AND puReturnValue > 0
+	puReturnValue = lnLastKey
+ENDIF 
+
+RETURN puReturnValue
+
+
+ENDPROC
+PROCEDURE movepointer
+
+LPARAMETERS lnRecordsToMove
+
+DO CASE 
+	CASE lnRecordsToMove = -1
+		* backward
+		IF NOT BOF("curSuper")
+			SKIP -1 IN curSuper
+			IF BOF("curSuper")
+				WAIT WINDOW NOWAIT "First record."
+				GO TOP IN curSuper
+			ENDIF 
+		ENDIF
+	CASE lnRecordsToMove = 1
+		* foreward
+		IF NOT EOF("curSuper")
+			SKIP 1 IN curSuper
+			IF EOF("curSuper")
+				WAIT WINDOW NOWAIT "Last record."
+				GO BOTTOM IN curSuper
+			ENDIF 
+		ENDIF 
+ENDCASE
+thisform.setlimitcontrols()
+ENDPROC
+PROCEDURE next_staff
+
+LPARAMETERS lnDirection
+
+* LS 30/03/2007	Added to enable function key f7 and f8
+IF lnDirection = 1
+	Thisform.nextpage()
+ELSE 
+	Thisform.prevpage()
+ENDIF 
+
+
+ENDPROC
+PROCEDURE nextpage
+IF ThisForm.Save()
+	ThisForm.MovePointer(1)
+	ThisForm.EnableDisable()
+	ThisForm.Refresh()
+ENDIF 
+ENDPROC
+PROCEDURE onchanged
+IF ThisForm.lDataChanged
+	REPLACE changed WITH .T. IN curSuper
+ENDIF 
+Thisform.enabledisable()
+
+
+ENDPROC
+PROCEDURE prevpage
+IF ThisForm.Save()
+	ThisForm.MovePointer(-1)
+	ThisForm.EnableDisable()
+	ThisForm.Refresh()
+ENDIF 
+
+ENDPROC
+PROCEDURE recalculateopenpays
+* update an open pay only if a superannuation has been changed
+
+LOCAL lcOldType, lcOldTypeCode
+lcOldType	=	curSuper.type
+lcOldTypeCode	= curSuper.typecode
+
+IF !USED("setup")
+	USE setup IN 0
+ENDIF 	
+
+IF !USED("pay")
+	USE pay IN 0
+ENDIF 	
+
+IF !USED("staff")
+	USE staff IN 0
+ENDIF 	
+
+SET CLASSLIB TO wwutils ADDITIVE
+LOCAL otherm, lnTotalUpdated, lnTotalToUpdate, lnPayCount
+otherm = CREATEOBJ("wwtherm", " ", .F.)
+otherm.setmessage("Recalculating pays - please wait.")
+lnTotalUpdated = 0
+lnTotalToUpdate = 1
+SELECT pay
+CALCULATE CNT() TO lnPayCount FOR paynum = 0
+lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+IF !setup.week_up
+	CALCULATE CNT() TO lnPayCount FOR paynum = setup.weekpaynum
+	lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+ENDIF 
+IF !setup.fort_up
+	CALCULATE CNT() TO lnPayCount FOR paynum = setup.fortpaynum
+	lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+ENDIF 
+IF !setup.bimon_up
+	CALCULATE CNT() TO lnPayCount FOR paynum = setup.bimonpaynu
+	lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+ENDIF 
+IF !setup.week4_up
+	CALCULATE CNT() TO lnPayCount FOR paynum = setup.week4paynu
+	lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+ENDIF 
+IF !setup.month_up
+	CALCULATE CNT() TO lnPayCount FOR paynum = setup.monthpaynu
+	lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+ENDIF 
+IF !EMPTY(setup.oneof_pay)
+	CALCULATE CNT() TO lnPayCount FOR paynum = setup.oneof_pay
+	lnTotalToUpdate = lnTotalToUpdate + lnPayCount
+ENDIF 
+
+SELECT curSuperannuationItemsChanged
+IF RECCOUNT() = 0
+ELSE
+FOR x = 1 TO 7
+
+	DO CASE
+	CASE x = 1
+		* standard pay
+		m.curpaynum = 0
+		m.period_date = {}
+		m.physical = {}
+		m.period_freq = staff.frequency
+	CASE x = 2
+		* weekly
+		IF SETUP.week_up
+			LOOP
+		ELSE
+			m.curpaynum = SETUP.weekpaynum
+			m.period_date = SETUP.week_date
+			m.physical = SETUP.weekpay
+			m.period_freq = 1
+		ENDIF
+	CASE x = 3
+		* fortnightly
+		IF SETUP.fort_up
+			LOOP
+		ELSE
+			m.curpaynum = SETUP.fortpaynum
+			m.period_date = SETUP.fort_date
+			m.physical = SETUP.fortpay
+			m.period_freq = 2
+		ENDIF
+	CASE x = 4
+		* bimonthly
+		IF SETUP.bimon_up
+			LOOP
+		ELSE
+			m.curpaynum = SETUP.bimonpaynu
+			m.period_date = SETUP.bimon_date
+			m.physical = SETUP.bimonpay
+			m.period_freq = 3
+		ENDIF
+	CASE x = 5
+		* 4-weekly
+		IF SETUP.week4_up
+			LOOP
+		ELSE
+			m.curpaynum = SETUP.week4paynu
+			m.period_date = SETUP.week4_date
+			m.physical = SETUP.week4pay
+			m.period_freq = 4
+		ENDIF
+	CASE x = 6
+		* monthly
+		IF SETUP.month_up
+			LOOP
+		ELSE
+			m.curpaynum = SETUP.monthpaynu
+			m.period_date = SETUP.month_date
+			m.physical = SETUP.monthpay
+			m.period_freq = 5
+		ENDIF
+	CASE x = 7
+		* one-off pay
+		IF SETUP.oneof_pay = 0
+			LOOP
+		ELSE
+			m.curpaynum = SETUP.oneof_pay
+			m.period_date = SETUP.oneof_date
+			m.physical = SETUP.onepay
+			m.period_freq = SETUP.oneof_freq
+		ENDIF
+	ENDCASE
+
+	m.netpay = 0
+	SELECT pay
+	SCAN FOR paynum = M.curpaynum 
+		lnTotalUpdated = lnTotalUpdated + 1
+		otherm.updatebar(lnTotalUpdated/lnTotalToUpdate * 99)		
+		SELECT pay
+		SCATTER MEMVAR
+		m.employee = pay.staff_code
+		SELECT staff
+		LOCATE FOR code = m.employee
+		IF !FOUND()
+			LOOP
+		ENDIF 	
+
+	
+		DO update_pay WITH M.curpaynum,.T.,.F.,M.period_date IN austpay_pay.spr		
+
+		SELECT pay
+		LOCATE FOR paynum = m.curpaynum AND staff_code = m.employee
+		IF FOUND()
+			GATHER MEMVAR
+		ENDIF 
+	ENDSCAN
+ENDFOR
+ENDIF 
+
+otherm.updatebar(100)
+RELEASE oTherm	
+
+
+* restore to the previous position
+SELECT curSuper
+LOCATE FOR curSuper.type = lcOldType AND curSuper.typecode = lcOldTypeCode
+ENDPROC
+PROCEDURE save
+IF ThisForm.ValidateData()
+	* check if any data has been changed
+	LOCAL llHasDataChanged
+	llHasDataChanged = .F.
+	IF NOT ThisForm.Adding
+		SELECT curSuper
+		FOR fIndex = 1 TO FCOUNT("curSuper")
+			lcField = FIELD(fIndex,"curSuper")
+			IF OLDVAL(lcField) <> &lcField  AND LOWER(lcField) <> "name" AND LOWER(lcField) <> "changed"
+				* Keep the record of those superannuations that have been changed. 
+				* This will help us to determine whether will have to recalculate pays
+				SELECT curSuperannuationItemsChanged
+				LOCATE FOR curSuperannuationItemsChanged.type = curSuper.type AND curSuperannuationItemsChanged.typeCode = curSuper.typeCode
+				IF NOT FOUND("curSuperannuationItemsChanged")
+					INSERT INTO curSuperannuationItemsChanged (type, typeCode) VALUES (curSuper.type, curSuper.typeCode)
+				ENDIF 
+				SELECT curSuper
+				EXIT 
+			ENDIF 
+		ENDFOR 
+	ENDIF 
+	
+	IF cursuper.limitSuper=.T.
+	   REPLACE  curSuper.SGMinEarn WITH 0, curSuper.SGMaxEarn WITH 999999.99 in cursuper
+	ENDIF		
+
+	TABLEUPDATE(0,.T.,"curSuper")
+	
+	IF LOWER(ALLTRIM(curSuper.type))="deduction" AND curSuper.taxable
+		* if the deduction is post-tax then default all liablity fields to .F. see #40081
+		REPLACE addholiday WITH .F.,addsick WITH .F.,addlong WITH .F.,addshift WITH .F.,;
+				addother WITH .F.,addrdo WITH .F.,addsuper WITH .F.,addpayroll WITH .F.,;
+				addwork WITH .F. in cursuper
+	ENDIF 
+	
+	* this can be found in superannution.prg. save superannuations back to the master table (deduct, noncashb)
+	SetSuperannuations("curSuper")
+	ThisForm.lDataChanged = .F.	
+	ThisForm.Adding = .F.
+	* LS 02/04/2007 Added to reset status after save.
+	Thisform.lDataChanged = .F.		
+	RETURN .T.
+ELSE 
+	RETURN .F.
+ENDIF 
+
+ENDPROC
+PROCEDURE savebyf10
+* VM 17/05/2007 Force validation of active field
+TRY
+	ThisForm.cntButtons.butSave.SetFocus()
+CATCH 
+ENDTRY 	
+ThisForm.Save()
+
+
+ENDPROC
+PROCEDURE setlimitcontrols
+IF cursuper.supercon=1
+   ThisForm.chkLimitSuper.Enabled=.T.
+   ThisForm.SetSgrules(cursuper.limitsuper)
+ELSE
+   ThisForm.chkLimitSuper.Enabled=.F.
+   ThisForm.SetSgrules(.F.)
+ENDIF
+
+ENDPROC
+PROCEDURE setsgrules
+LPARAMETERS lbLimitSuper
+IF NOT lbLimitSuper
+	IF THISFORM.TxtMinSGEarn.VALUE = 0 AND !THISFORM.adding
+		THISFORM.TxtMinSGEarn.VALUE = AU_MinSuperContribution()
+	ENDIF
+	IF THISFORM.TxtMaxSGEarn.VALUE = 999999.99 AND !THISFORM.adding
+		THISFORM.TxtMaxSGEarn.VALUE = AU_MaxSuperContribution()
+	ENDIF
+ENDIF
+
+ENDPROC
+PROCEDURE updatedeductinpay
+PARAMETER UP_PAYNUM, UP_DATE, UP_ALLOW, UP_FREQ, TYPE
+* Update all employee's pays for this pay who get this deduction
+
+Comacc.OpenTable("staff")
+
+PRIVATE NETPAY, PERIOD_FREQ
+M.PERIOD_FREQ = M.UP_FREQ
+
+SELECT PDEDUCT2
+SCAN FOR PAYNUM = M.UP_PAYNUM AND DEDUCTCODE = M.UP_ALLOW
+
+* LS 27/04/2005	Clear rate if not a rate method 
+	IF LOWER(ALLTRIM(cursuper.cmethod)) <> "% of gross pay"
+		REPLACE RATE WITH 0
+	ELSE 
+		* No worry, update will do replace with calculated value
+	ENDIF 
+	
+	IF cursuper.amount <> 0
+		* Always need amount no matter what the mathod is
+		IF LOWER(ALLTRIM(cursuper.cmethod)) = "fixed dollar amount"
+			REPLACE USUAL_AMT WITH cursuper.amount
+		ELSE
+			IF LOWER(ALLTRIM(cursuper.cmethod)) = "% of gross pay"
+				REPLACE RATE WITH cursuper.amount				
+			ENDIF
+		ENDIF
+	ENDIF
+	
+	* Recalculate pay
+	M.NETPAY = 0
+	SELECT STAFF
+	SET ORDER TO CODE
+	IF SEEK(PDEDUCT2.STAFF_CODE)
+		SELECT PAY
+		LOCATE FOR PAYNUM = M.UP_PAYNUM AND STAFF_CODE = PDEDUCT2.STAFF_CODE
+		SCATTER MEMVAR
+		* CM have added the .T. flag on the end here to supress the 
+		* wait window message when recalculating the pays.
+		DO UPDATE_PAY WITH M.UP_PAYNUM, .T., .F., M.UP_DATE, .T. IN austpay_PAY.spr		
+		SELECT PAY
+		GATHER MEMVAR
+	ENDIF
+ENDSCAN
+ENDPROC
+PROCEDURE validatedata
+*!*	06/11/2008 CMGM  Validation not required as field is now hidden
+*!*	IF EMPTY(curSuper.TYPE) 
+*!*		MESSAGEBOX("Please enter a Type for this Superannuation.",0+64,"Type cannot be blank")
+*!*	 	ThisForm.cmbSuperannuationType.SetFocus()		
+*!*	  	RETURN .F.		
+*!*	ENDIF 
+
+IF EMPTY(curSuper.typeCode) 
+	MESSAGEBOX("Please enter a Code for this Superannuation.",0+64,"Code cannot be blank")
+	ThisForm.txtCode.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+IF EMPTY(curSuper.name) 
+	MESSAGEBOX("Please enter a Name for this Superannuation.",0+64,"Name cannot be blank")
+	ThisForm.txtName.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+IF EMPTY(curSuper.paytype) 
+	MESSAGEBOX("Please enter a Payment Type for this Superannuation.",0+64,"Payment type cannot be blank")
+	ThisForm.cmbPaymentType.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+IF EMPTY(curSuper.provider) 
+	MESSAGEBOX("Please enter a Provider for this Superannuation.",0+64,"Provider cannot be blank")
+	ThisForm.cboSuperannuationProvider.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+IF NOT EMPTY(curSuper.cc) AND NOT SEEK(curSuper.cc,"costcent","code")
+	MESSAGEBOX("Please enter a valid Cost Centre for this Superannuation.",0+64,"Cost Centre cannot be found")
+	ThisForm.ConCostcentre.txtCode.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+* 26/11/2008 CMGM  Also do not allow a blank cboContributionType
+IF EMPTY (curSuper.supercon)
+	MESSAGEBOX("Please enter a valid Contribution Type.",0+64,"Contribution Type cannot be blank")
+	ThisForm.cboContributionType.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+IF cursuper.limitsuper=.T. AND curSuper.limitAmnt<0
+	MESSAGEBOX("Please enter a valid amount for Maximum Super Contribution Amount per week.",0+64,"Maximum SG cannot be negative")
+	ThisForm.txtLimitAmt.SetFocus
+	RETURN .F.		
+ENDIF 
+
+* 06/11/2008 CMGM  Workaround for the refresh issue of the cboContributionType field
+*                  Validate if user has picked the dummy records
+IF (curSuper.supercon = 16) OR (curSuper.supercon = 17)
+	MESSAGEBOX("Please enter a valid Contribution Type.",0+64,"Contribution Type cannot be blank")
+	ThisForm.cboContributionType.SetFocus()
+	RETURN .F.		
+ENDIF 
+
+
+RETURN .T.
+		
+ENDPROC
+[END METHODS]
+[START RESERVED3]
+*enableinputcontrols 
+*onchanged 
+*recalculateopenpays 
+*setlimitcontrols 
+*setsgrules 
+*updatedeductinpay 
+enablefieldcontrols
+ldatachanged
+[END RESERVED3]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN55
+[CLASS] ccombobox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] combobox
+[OBJNAME] cboCalculationMethod
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.cmethod"
+Enabled = .T.
+Height = 24
+Left = 289
+Name = "cboCalculationMethod"
+RowSource = "Fixed Dollar Amount,% of Gross Pay"
+RowSourceType = 1
+Style = 2
+TabIndex = 5
+Top = 112
+Width = 155
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+IF This.ListIndex = 1
+	ThisForm.txtRate.Value = 0
+ENDIF 
+
+ENDPROC
+PROCEDURE Valid
+Thisform.txtAmount.Enabled = (LOWER(ALLTRIM(curSuper.cmethod))="fixed dollar amount")
+Thisform.txtRate.Enabled = (LOWER(ALLTRIM(curSuper.cmethod))="% of gross pay") 
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN57
+[CLASS] ccombobox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] combobox
+[OBJNAME] cboContributionType
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+BoundColumn = 3
+BoundTo = .T.
+ColumnCount = 6
+ColumnLines = .F.
+ColumnWidths = "40,280,0,0,0,0"
+ControlSource = "curSuper.supercon"
+DisabledItemForeColor = 220,220,220
+DisplayCount = 17
+Enabled = .T.
+Height = 24
+ItemTips = .T.
+Left = 289
+Name = "cboContributionType"
+RowSource = "cursupercon.scalpha,scname,sccode,sctype,sctax,scdesc"
+RowSourceType = 6
+Style = 2
+TabIndex = 3
+ToolTipText = ""
+Top = 81
+Width = 156
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+lcDesc = ' '
+IF SEEK(Thisform.cboContributionType.Value,"supercon","sccode")
+	lcDesc = ALLTRIM(supercon.scalpha) + " DESCRIPTION : " + (supercon.scdesc)
+ELSE
+	lcDesc = " DESCRIPTION : "
+ENDIF
+Thisform.cboContributionType.ToolTipText = lcDesc
+IF (Thisform.cboContributionType.Value = 1)
+	Thisform.TxtMinSGEarn.Enabled =.T.
+	Thisform.TxtMaxSGEarn.Enabled =.T.	
+	IF (Thisform.adding)
+		Thisform.TxtMinSGEarn.Value = AU_MinSuperContribution()
+		Thisform.TxtMaxSGEarn.Value = AU_MaxSuperContribution()
+		Thisform.txtRate.Value = SG_RATE_YEAR()
+		Thisform.txtRate.Enabled = .T.
+		Thisform.cboCalculationMethod.value="% of Gross Pay"
+		Thisform.txtAmount.Enabled = .F.
+	ENDIF
+	ThisForm.chkLimitSuper.Enabled=.T.
+ELSE
+	Thisform.TxtMinSGEarn.Value = 0.00	
+	Thisform.TxtMinSGEarn.Enabled =.F.
+	Thisform.TxtMaxSGEarn.Value = 0.00	
+	Thisform.TxtMaxSGEarn.Enabled =.F.	
+	ThisForm.txtRate.Value = 0.00
+	ThisForm.chkLimitSuper.Value=.F.
+ENDIF
+
+ENDPROC
+PROCEDURE Refresh
+* 07/11/2008 CMGM  Display cboContributionType selection description
+lcDesc = ' '
+IF SEEK(curSuper.supercon,"supercon","sccode")
+	lcDesc = ALLTRIM(supercon.scalpha) + " DESCRIPTION : " + (supercon.scdesc)
+ELSE
+	lcDesc = " DESCRIPTION : "
+ENDIF
+Thisform.cboContributionType.ToolTipText = lcDesc
+Thisform.enabledisable()
+
+ENDPROC
+PROCEDURE Valid
+* move to form controlinterctive()
+IF curSuper.supercon <> IIF(ISNULL(OLDVAL("supercon","curSuper")),0,OLDVAL("supercon","curSuper"))
+	ThisForm.lDataChanged = .T.
+ENDIF 
+
+* 06/11/2008 CMGM  Set the field value on what is chosen from contribution type
+Thisform.chkTaxable.Value = curSupercon.sctax
+
+* 06/11/2008 CMGM  Refresh the liabilities button
+IF !curSuper.taxable OR LOWER(ALLTRIM(cursuper.type))="non-cash benefit"
+	Thisform.cmdLiabilities.Visible = .T.
+ELSE
+	Thisform.cmdLiabilities.Visible = .F.
+ENDIF
+
+Thisform.Refresh()
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN5A
+[CLASS] ccombobox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] combobox
+[OBJNAME] cboSuperannuationProvider
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+BoundColumn = 2
+BoundTo = .T.
+ControlSource = "curSuper.provider"
+Enabled = .T.
+Height = 24
+Left = 289
+Name = "cboSuperannuationProvider"
+RowSource = "super.spname,spcode"
+RowSourceType = 6
+Style = 2
+TabIndex = 16
+Top = 323
+Width = 204
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+
+ENDPROC
+PROCEDURE Valid
+* move to form controlinterctive()
+* LS 30/03/2007	IF curSuper.provider <> IIF(ISNULL(OLDVAL("provider","curSuper")),0,OLDVAL("provider","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _4XC0M4LBM
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkLimitSuper
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Alignment = 0
+Caption = "Limit Super Contributions"
+ControlSource = "curSuper.limitSuper"
+Left = 289
+Name = "chkLimitSuper"
+TabIndex = 8
+Top = 205
+Value = .F.
+Visible = .T.
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.SetSGRules(this.value)
+Thisform.controlinteractivechange(This)
+ENDPROC
+PROCEDURE Valid
+ThisForm.EnableDisable()
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2NF0VEINI
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkRESC
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Alignment = 0
+Caption = "RESC"
+ControlSource = "curSuper.lresc"
+Left = 469
+Name = "chkRESC"
+TabIndex = 4
+ToolTipText = "Reportable Employer Superannuation Contributions"
+Top = 86
+Visible = .T.
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+ThisForm.ControlInteractiveChange(This)
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkTaxable
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Alignment = 0
+Caption = "Post-Tax"
+ControlSource = "curSuper.taxable"
+Left = 289
+Name = "chkTaxable"
+TabIndex = 20
+Top = 452
+Visible = .F.
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+ENDPROC
+PROCEDURE Valid
+* move to form controlinterctive()
+* LS 30/03/2007	IF curSuper.taxable <> IIF(ISNULL(OLDVAL("taxable","curSuper")),.F.,OLDVAL("taxable","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+ThisForm.cmdLiabilities.Visible = (!curSuper.taxable OR LOWER(ALLTRIM(cursuper.type))="non-cash benefit")			
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN4W
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] Clabel8
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Superannuation Type:"
+Height = 18
+Left = 48
+Name = "Clabel8"
+TabIndex = 22
+Top = 19
+Width = 134
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN54
+[CLASS] ccombobox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] combobox
+[OBJNAME] cmbPaymentType
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.paytype"
+DisabledItemBackColor = 255,255,255
+DisplayCount = 3
+Enabled = .T.
+Height = 24
+Left = 289
+Name = "cmbPaymentType"
+RowSource = "Employee Superannuation,Employer Superannuation"
+RowSourceType = 1
+Style = 2
+TabIndex = 1
+Top = 19
+Width = 250
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+
+* 06/11/2008 CMGM  Filter data in cboContributionType depending on cmbPaymentType user selection
+*                  Note that this is a bug in VFP: need to delete records first then add to cursor
+lcPayType = ALLTRIM(Thisform.cmbPaymentType.Value)
+DELETE FROM curSupercon
+INSERT INTO curSupercon SELECT * FROM supercon where sctype = lcPayType		
+
+ENDPROC
+PROCEDURE Refresh
+* 07/11/2008 CMGM  Filter data in cboContributionType depending on cmbPaymentType display value
+*                  Note that this is a bug in VFP: need to delete records first then add to cursor
+lcPayType = ALLTRIM(curSuper.paytype)
+DELETE FROM curSupercon
+INSERT INTO curSupercon SELECT * FROM supercon where sctype = lcPayType
+
+ENDPROC
+PROCEDURE Valid
+ThisForm.EnableDisable()
+Thisform.Refresh()
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN4Y
+[CLASS] ccombobox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] combobox
+[OBJNAME] cmbSuperannuationType
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.type"
+Enabled = .T.
+Height = 24
+Left = 289
+Name = "cmbSuperannuationType"
+RowSource = "Deduction,Non-cash benefit"
+RowSourceType = 1
+Style = 2
+TabIndex = 19
+Top = 419
+Visible = .F.
+Width = 155
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+ThisForm.ControlInteractiveChange(This)
+ENDPROC
+PROCEDURE Valid
+
+* CM 28/04/2007 sensible default contribution type for deduction/non cash
+IF LOWER(ALLTRIM(This.Value)) = "deduction" AND ThisForm.Adding 
+	ThisForm.cboContributionType.Value = 2 && SS
+ELSE
+	ThisForm.cboContributionType.Value = 1 && SG	
+ENDIF	
+
+ThisForm.EnableDisable()
+Thisform.Refresh()
+
+* LS 30/03/2007	IF curSuper.type <> IIF(ISNULL(OLDVAL("type","curSuper")),"",OLDVAL("type","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2170U8YQN
+[CLASS] ccommandbutton
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] commandbutton
+[OBJNAME] cmdLiabilities
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "\<Liabilities"
+Height = 27
+Left = 289
+Name = "cmdLiabilities"
+TabIndex = 18
+Top = 385
+Width = 108
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE Click
+* Only pre-tax deductions affect liabilities
+* LS 17/09/2021 ES-6740 add 2 new params for liabilities form setting
+DO FORM Liabilities WITH IIF(cursuper.type = "Deduction", "Superannuations Super Deductions", "Superannuations"), ;
+	"curSuper.addholiday", .t., ;
+	"curSuper.addsick", .t., ;
+	"curSuper.addlong", .t., ;
+	"curSuper.addshift", .t., ;
+	"curSuper.addother", .t., ;
+	"curSuper.addrdo", .t., ;
+	"curSuper.addsuper", .t., ;
+	"curSuper.addpayroll", .t., ;
+	"curSuper.addwork", .t.,;
+	curSuper.paytype,;
+	curSuper.supercon
+	
+* LS 30/03/2007	ThisForm.lDataChanged = .T.
+* LS 30/03/2007	Added fire enabledisabled()
+IF Thisform.changed('curSuper')
+	Thisform.controlinteractivechange(This)
+ENDIF 
+
+ThisForm.Refresh()	
+
+
+ENDPROC
+PROCEDURE Refresh
+IF !curSuper.taxable OR LOWER(ALLTRIM(cursuper.type))="non-cash benefit"
+	This.Visible = .T.
+ELSE
+	This.Visible = .F.
+ENDIF		
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP87
+[CLASS] maintformbuttons_new
+[CLASSLOC] ..\..\..\src\classes\formdef.vcx
+[BASECLASS] container
+[OBJNAME] cntButtons
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Cshape1.Name = "Cshape1"
+Left = 47
+Name = "cntButtons"
+TabIndex = 21
+Top = 488
+butAdd.Name = "butAdd"
+butAdd.Top = 6
+butDelete.Left = 361
+butDelete.Name = "butDelete"
+butDelete.Top = 6
+butExit.Name = "butExit"
+butFind.Name = "butFind"
+butNext.Name = "butNext"
+butPrev.Name = "butPrev"
+butSave.Name = "butSave"
+butcancel.Name = "butcancel"
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE butNext.Click
+ThisForm.NextPage()
+ENDPROC
+PROCEDURE butPrev.Click
+ThisForm.PrevPage()
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _4LR0W7JP3
+[CLASS] costcentre_text_select_showname
+[CLASSLOC] ..\..\..\src\classes\commoncontrols.vcx
+[BASECLASS] container
+[OBJNAME] ConCostcentre
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Height = 24
+LBLNAME.Name = "LBLNAME"
+Left = 289
+Name = "ConCostcentre"
+TabIndex = 17
+Top = 354
+Width = 355
+btnLookup.Name = "btnLookup"
+txtCode.ControlSource = "curSuper.cc"
+txtCode.Name = "txtCode"
+txtCode.allow_empty = .T.
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE btnLookup.Click
+DODEFAULT()
+Thisform.controlinteractivechange(This)
+ENDPROC
+PROCEDURE txtCode.InteractiveChange
+Thisform.controlinteractivechange(This)
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblAmount
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Amount:"
+Height = 18
+Left = 48
+Name = "lblAmount"
+TabIndex = 27
+Top = 177
+Width = 50
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN4X
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblCalculationMethod
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Calculation Method:"
+Left = 48
+Name = "lblCalculationMethod"
+TabIndex = 25
+Top = 115
+Width = 119
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblCode
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+BackColor = 220,220,220
+Caption = "Code:"
+Height = 18
+Left = 48
+Name = "lblCode"
+TabIndex = 23
+Top = 52
+Width = 38
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblContributionType
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Contribution Type:"
+Height = 18
+Left = 48
+Name = "lblContributionType"
+TabIndex = 24
+Top = 84
+Width = 110
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN4V
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblCostCentre
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Cost Centre:"
+Height = 18
+Left = 48
+Name = "lblCostCentre"
+TabIndex = 33
+Top = 360
+Width = 74
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblName
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Name:"
+Height = 18
+Left = 48
+Name = "lblName"
+TabIndex = 31
+Top = 295
+Width = 42
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblPerMonth
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "per Month"
+Height = 18
+Left = 390
+Name = "lblPerMonth"
+TabIndex = 12
+Top = 233
+Width = 61
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _36V0NZ3ZO
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblPerQtr
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "per Quarter"
+Height = 18
+Left = 390
+Name = "lblPerQtr"
+TabIndex = 14
+Top = 264
+Width = 69
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _4XC0M4LBO
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblPerWeek
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "per Week"
+Height = 18
+Left = 390
+Name = "lblPerWeek"
+TabIndex = 10
+Top = 233
+Width = 61
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN4S
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblRate
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Percentage Rate:"
+Height = 18
+Left = 48
+Name = "lblRate"
+TabIndex = 26
+Top = 146
+Width = 107
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _36V0NZ3ZM
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblSGMaxEarn
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Maximum Earnings Base:"
+Height = 18
+Left = 48
+Name = "lblSGMaxEarn"
+TabIndex = 30
+Top = 264
+Width = 153
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblSGMinEarn
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Minimum Earnings Base:"
+Height = 18
+Left = 48
+Name = "lblSGMinEarn"
+TabIndex = 28
+Top = 233
+Width = 149
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN59
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblSuperannuationProvider
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Superannuation Provider:"
+Height = 18
+Left = 48
+Name = "lblSuperannuationProvider"
+TabIndex = 32
+Top = 328
+Width = 153
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JYXNM
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblSuperannuationType
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Superannuation Type:"
+Height = 18
+Left = 48
+Name = "lblSuperannuationType"
+TabIndex = 34
+Top = 424
+Visible = .F.
+Width = 134
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _4XC0M4LBP
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblSuperLimitAmt
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+Caption = "Maximum Super Contributions Amount:"
+Height = 18
+Left = 48
+Name = "lblSuperLimitAmt"
+TabIndex = 29
+Top = 233
+Width = 229
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP85
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtAmount
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.amount"
+Height = 24
+Left = 289
+Margin = 2
+Name = "txtAmount"
+TabIndex = 7
+Top = 174
+Width = 95
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+
+ENDPROC
+PROCEDURE Valid
+* move to form controlinterctive()
+* LS 30/03/2007	IF curSuper.amount <> IIF(ISNULL(OLDVAL("amount","curSuper")),0,OLDVAL("amount","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP86
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtCode
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.typecode"
+Height = 24
+InputMask = "9999"
+Left = 289
+Margin = 2
+Name = "txtCode"
+TabIndex = 2
+Top = 50
+Width = 80
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+ThisForm.ControlInteractiveChange(This)
+ENDPROC
+PROCEDURE RangeHigh
+DO CASE 
+	CASE LOWER(ALLTRIM(curSuper.type))="deduction"
+		* deduction code can take max 3 digits
+		IF This.Value > 999
+			WAIT WINDOW NOWAIT "Deduction type code can take maximum 3 digits."
+		ENDIF 
+		RETURN 999
+	CASE LOWER(ALLTRIM(curSuper.type))="non-cash benefit"
+		* ncb code can take max 4 digits
+		RETURN 9999
+ENDCASE 
+	
+	
+ENDPROC
+PROCEDURE Valid
+* This is not enough to prevent real deduct or non-cash benefit being overriden
+* LS 16/07/2008	SELECT typecode FROM curSuper WHERE curSuper.typecode = This.Value AND LOWER(ALLTRIM(curSuper.type))=LOWER(ALLTRIM(ThisForm.cmbSuperannuationType.Value)) AND NOT curSuper.deleted INTO ARRAY aTemp
+* LS 16/07/2008	IF _tally > 0
+* LS 16/07/2008		MESSAGEBOX("There is another Superannuation of type " + ALLTRIM(ThisForm.cmbSuperannuationType.Value) + " with this code. Please enter a different code.",0+64,"Duplicate code")	
+* LS 16/07/2008		RETURN .F.
+* LS 16/07/2008	ENDIF 
+
+IF LOWER(ALLTRIM(curSuper.type))="deduction"
+	SELECT code ;
+		FROM deduct ;
+		WHERE deduct.code = This.Value ;
+		INTO ARRAY arrexist
+ELSE 
+	SELECT nccode ;
+		FROM noncashb ;
+		WHERE noncashb.nccode=This.Value ;
+		INTO ARRAY arrexist
+ENDIF 
+IF _tally > 0
+*   06/11/2008 CMGM  Use Employee/Employer Superannuation in message instead of Deduction/Non-cash benefit
+* 	06/11/2008 CMGM  MESSAGEBOX("There is another " + ALLTRIM(ThisForm.cmbSuperannuationType.Value) + " with this code. Please enter a different code.",0+64,"Duplicate code")	
+	MESSAGEBOX("There is another " + ALLTRIM(ThisForm.cmbPaymentType.Value) + " with this code. Please enter a different code.",0+64,"Duplicate code")	
+	RETURN .F.
+ENDIF 
+
+***********
+
+LOCAL lnType, lnCode, lcName
+DO CASE 
+	CASE LOWER(ALLTRIM(curSuper.type))="deduction"
+		SELECT type, code, name FROM deduct WHERE deduct.code = This.Value AND deduct.type <> 2 INTO CURSOR curDed
+		IF _tally>0				
+			lnType = curDed.type
+			lnCode = curDed.code
+			lcName = curDed.name
+			MESSAGEBOX("Cannot edit: " + TRANSFORM(lnCode) + " " + ALLTRIM(lcName) + " is a Deduction that is not of type Superannuation.  If you want to edit this item, please select the Deductions screen, from the Maintenance menu.",0+48,"Cannot edit")		
+			USE IN SELECT("curDed")
+			RETURN .F.
+		ENDIF 
+	
+		SELECT nctype, nccode, ncname FROM noncashb WHERE noncashb.nccode=This.Value AND NOT INLIST(LOWER(ALLTRIM(noncashb.nctype)),"employer superannuation","employee superannuation")  INTO CURSOR curNCB
+		* VM 24/04/2007 SELECT nctype, nccode, ncname FROM noncashb WHERE noncashb.nccode=This.Value AND NOT INLIST(LOWER(ALLTRIM(noncashb.nctype)),"employer superannuation","salary sacrifice - superannuation")  INTO CURSOR curNCB
+		IF _tally>0	
+			lnType = curNCB.nctype
+			lnCode = curNCB.nccode
+			lcName = curNCB.ncname
+			MESSAGEBOX("Cannot edit: " + TRANSFORM(lnCode) + " " + ALLTRIM(lcName) + " is a Non-Cash Benefit that is not of type Superannuation.  If you want to edit this item, please select the Non-Cash Benefits screen, from the Maintenance menu.",0+48,"Cannot edit")		
+			USE IN SELECT("curNCB")
+			RETURN .F.
+		ENDIF 
+ENDCASE 
+
+ThisForm.EnableDisable()
+Thisform.Refresh()
+
+* Move to form controlinteractive()
+* LS 30/03/2007	IF curSuper.typecode <> IIF(ISNULL(OLDVAL("typecode","curSuper")),0,OLDVAL("typecode","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+
+* 06/11/2008 CMGM  Do not enable when paytype and typecode already selected
+* This.Enabled = .T.
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _4XC0M4LBN
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtLimitAmt
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.LimitAmnt"
+Format = "99999999.99"
+Height = 24
+Left = 289
+Margin = 2
+Name = "txtLimitAmt"
+TabIndex = 9
+Top = 230
+Width = 95
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+ENDPROC
+PROCEDURE Valid
+IF this.value<0
+	MESSAGEBOX("The maximum super contribution amount cannot not be negative.",0+64,"Maximum SG cannot be negative")
+	RETURN .F.
+ENDIF	
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _36V0NZ3ZN
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtMaxSGEarn
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.SGMaxEarn"
+Height = 24
+Left = 289
+Margin = 2
+Name = "txtMaxSGEarn"
+TabIndex = 13
+Top = 261
+Width = 95
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+
+ENDPROC
+PROCEDURE Refresh
+Thisform.TxtMaxSGEarn.Enabled = IIF(Thisform.cboContributionType.Value = 1, .T., .F.)
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160JTP86
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtMinSGEarn
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.SGMinEarn"
+Height = 24
+Left = 289
+Margin = 2
+Name = "txtMinSGEarn"
+TabIndex = 11
+Top = 230
+Width = 95
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+
+ENDPROC
+PROCEDURE Refresh
+Thisform.TxtMinSGEarn.Enabled = IIF(Thisform.cboContributionType.Value = 1, .T., .F.)
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN4Z
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtName
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.name"
+Enabled = .T.
+Height = 24
+Left = 289
+Margin = 2
+Name = "txtName"
+TabIndex = 15
+Top = 292
+Width = 289
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+ThisForm.ControlInteractiveChange(This)
+ENDPROC
+PROCEDURE Valid
+* LS 30/03/2007	IF curSuper.name <> IIF(ISNULL(OLDVAL("name","curSuper")),"",OLDVAL("name","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2160KDN50
+[CLASS] ctextbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] textbox
+[OBJNAME] txtRate
+[PARENT] frmSuperannuation
+[START PROPERTIES]
+ControlSource = "curSuper.percent"
+Height = 24
+Left = 289
+Margin = 2
+Name = "txtRate"
+TabIndex = 6
+Top = 143
+Width = 95
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE InteractiveChange
+Thisform.controlinteractivechange(This)
+
+ENDPROC
+PROCEDURE Valid
+* move to form controlinterctive()
+* LS 30/03/2007	IF curSuper.percent <> IIF(ISNULL(OLDVAL("percent","curSuper")),0,OLDVAL("percent","curSuper"))
+* LS 30/03/2007		ThisForm.lDataChanged = .T.
+* LS 30/03/2007	ENDIF 
+
+
+
+
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] COMMENT 
+[UNIQUEID] RESERVED  
+[START PROPERTIES]
+Arial, 0, 9, 5, 15, 12, 32, 3, 0
+MS Sans Serif, 0, 10, 7, 16, 13, 14, 3, 0
+MS Sans Serif, 0, 8, 5, 13, 11, 11, 2, 0
+[END PROPERTIES]
+[EOF]
