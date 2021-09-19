@@ -104,7 +104,8 @@ ThisForm.chkPayrollTax.Enabled = tlShowPayrollTax
 ThisForm.chkWorkcover.ControlSource = tcWorkCover 
 ThisForm.chkWorkcover.Enabled = tlShowWorkCover
 
-* LS 17/09/2021 ES-6740 this SG under Employer Superannuation
+* LS 20/09/2021 ES-6740 this SG under Employer Superannuation
+* check first
 IF AT("Superannuation",tcType) > 0 AND varTYPE(tnConType) = "N" AND varTYPE(tcEmpType) = "C" then
 IF tnConType = 1 AND tcEmpType="Employer Superannuation" THEN 
 	ThisForm.chkAnnual.Enabled = .F.
@@ -114,7 +115,8 @@ IF tnConType = 1 AND tcEmpType="Employer Superannuation" THEN
 	ThisForm.chkSuperannuation.Enabled = .F.
 ENDIF 
 
-* LS 17/09/2021 ES-6740 this SS under Employee Superannuation
+* LS 20/09/2021 ES-6740 this SS under Employee Superannuation
+* check first
 IF tnConType = 2 AND tcEmpType="Employee Superannuation" 
 	replace &tcShiftLeave WITH .F.
 	replace &tcOtherLeave with .f.
