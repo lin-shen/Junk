@@ -1275,7 +1275,7 @@ Width = 108
 [START METHODS]
 PROCEDURE Click
 * Only pre-tax deductions affect liabilities
-* LS 17/09/2021 ES-6740 add 2 new params for liabilities form setting
+* LS 20/09/2021 ES-6740 add 2 new params for liabilities form setting
 DO FORM Liabilities WITH IIF(cursuper.type = "Deduction", "Superannuations Super Deductions", "Superannuations"), ;
 	"curSuper.addholiday", .t., ;
 	"curSuper.addsick", .t., ;
@@ -1287,7 +1287,8 @@ DO FORM Liabilities WITH IIF(cursuper.type = "Deduction", "Superannuations Super
 	"curSuper.addpayroll", .t., ;
 	"curSuper.addwork", .t.,;
 	curSuper.paytype,;
-	curSuper.supercon
+	IIF(curSuper.Supercon > 0, supercon.scalpha, .F.);
+	
 	
 * LS 30/03/2007	ThisForm.lDataChanged = .T.
 * LS 30/03/2007	Added fire enabledisabled()

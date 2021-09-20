@@ -57,9 +57,9 @@ LPARAMETERS tcType, ;
 	tcRDO, tlShowRDO, ;
 	tcSuperAnnuation, tlShowSuperAnnuation, ;
 	tcPayrollTax, tlShowPayrollTax, ;
-	tcWorkCover, tlShowWorkCover,;	
-	tcEmpType,;	
-    tnConType;			
+	tcWorkCover, tlShowWorkCover,; 
+	tcPayType,;
+	tcConType;			
 
 IF "deduction" $ LOWER(tcType)
 	ThisForm.lblHeading.Caption = "Subtract " + ALLTRIM(PROPER(tcType)) + " from gross liable for: "
@@ -104,24 +104,21 @@ ThisForm.chkPayrollTax.Enabled = tlShowPayrollTax
 ThisForm.chkWorkcover.ControlSource = tcWorkCover 
 ThisForm.chkWorkcover.Enabled = tlShowWorkCover
 
-* LS 20/09/2021 ES-6740 this SG under Employer Superannuation
-* check first
-IF AT("Superannuation",tcType) > 0 AND varTYPE(tnConType) = "N" AND varTYPE(tcEmpType) = "C" then
-IF tnConType = 1 AND tcEmpType="Employer Superannuation" THEN 
-	ThisForm.chkAnnual.Enabled = .F.
-	ThisForm.chkPersonal.Enabled = .F.
-	ThisForm.chkLongService.Enabled = .F.
-	ThisForm.chkRDO.Enabled = .F.
-	ThisForm.chkSuperannuation.Enabled = .F.
+* LS 20/09/2021 ES-6740 
+* override for Employer Superannuation type SG 
+IF "Employer Superannuation" $ tcPayType AND ALLTRIM(tcConType) = "SG" then
+		ThisForm.chkAnnual.Enabled = .F.
+		ThisForm.chkPersonal.Enabled = .F.
+		ThisForm.chkLongService.Enabled = .F.
+		ThisForm.chkRDO.Enabled = .F.
+		ThisForm.chkSuperannuation.Enabled = .F.
 ENDIF 
 
-* LS 20/09/2021 ES-6740 this SS under Employee Superannuation
-* check first
-IF tnConType = 2 AND tcEmpType="Employee Superannuation" 
-	replace &tcShiftLeave WITH .F.
-	replace &tcOtherLeave with .f.
-endif
-ENDIF
+	* override for Employee Superannuation type SS
+IF "Employee Superannuation" $ tcPayType AND ALLTRIM(tcConType) = "SS" then
+		replace &tcShiftLeave WITH .F.
+		replace &tcOtherLeave with .f.
+	ENDIF 
 
 ThisForm.BindControls = .T.
 
