@@ -5,6 +5,9 @@ IF NOT EmailAddressValidation(pcRecipient)
 	lcerror = "Invalid email address"
 	RETURN lcerror
 ENDIF
+* Test 
+LOCAL llFlag123
+llFlag123 = .T.
 
 * ES-7156 Create SMTP log - we now using Popeye API, instead of SMTP
 DO CASE
