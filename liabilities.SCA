@@ -1,0 +1,332 @@
+SCCTEXT Version 4.0.0.2
+PLATFORM C(8,0),UNIQUEID C(10,0),TIMESTAMP N(10,0),CLASS M(4,0),CLASSLOC M(4,0),BASECLASS M(4,0),OBJNAME M(4,0),PARENT M(4,0),PROPERTIES M(4,0),PROTECTED M(4,0),METHODS M(4,0),OBJCODE M(4,0),OLE M(4,0),OLE2 M(4,0),RESERVED1 M(4,0),RESERVED2 M(4,0),RESERVED3 M(4,0),RESERVED4 M(4,0),RESERVED5 M(4,0),RESERVED6 M(4,0),RESERVED7 M(4,0),RESERVED8 M(4,0),USER M(4,0)
+1252
+
+[ RECORD]
+[PLATFORM] COMMENT 
+[UNIQUEID] Screen    
+[START RESERVED1]
+VERSION =   3.00[END RESERVED1]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46BZ
+[CLASS] dataenvironment
+[BASECLASS] dataenvironment
+[OBJNAME] Dataenvironment
+[START PROPERTIES]
+DataSource = .NULL.
+Height = 0
+Left = 0
+Name = "Dataenvironment"
+Top = 0
+Width = 0
+[END PROPERTIES]
+[START RESERVED2]
+1[END RESERVED2]
+[START RESERVED4]
+1[END RESERVED4]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46C0
+[CLASS] formdef
+[CLASSLOC] ..\..\..\src\classes\formdef.vcx
+[BASECLASS] form
+[OBJNAME] LIABILITIES
+[START PROPERTIES]
+BindControls = .F.
+Caption = "Payment Liabilities"
+Closable = .T.
+DoCreate = .T.
+Height = 250
+Name = "LIABILITIES"
+Width = 420
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE Activate
+DO SET_KEYS IN UTILITY.PRG
+ENDPROC
+PROCEDURE Init
+LPARAMETERS tcType, ;
+	tcAnnualLeave, tlShowAnnualLeave, ;
+	tcPersonalLeave, tlShowPersonalLeave, ;
+	tcLongServiceLeave, tlShowLongServiceLeave, ;
+	tcShiftLeave, tlShowShiftLeave, ;
+	tcOtherLeave, tlShowOtherLeave, ;
+	tcRDO, tlShowRDO, ;
+	tcSuperAnnuation, tlShowSuperAnnuation, ;
+	tcPayrollTax, tlShowPayrollTax, ;
+	tcWorkCover, tlShowWorkCover,; 
+	tcPayType,;
+	tcConType;			
+
+IF "deduction" $ LOWER(tcType)
+	ThisForm.lblHeading.Caption = "Subtract " + ALLTRIM(PROPER(tcType)) + " from gross liable for: "
+ELSE
+	ThisForm.lblHeading.Caption = "Add " + ALLTRIM(PROPER(tcType)) + " to gross liable for: "
+ENDIF		
+
+* CM override for superannaution type deductions as well
+IF "Super Deductions" $ tcType
+	tcType = ALLTRIM(STRTRAN(tcType, "Super Deductions", ""))
+	ThisForm.lblHeading.Caption = "Subtract " + ALLTRIM(PROPER(tcType)) + " from gross liable for: "
+ENDIF
+
+ThisForm.chkAnnual.ControlSource = tcAnnualLeave
+ThisForm.chkAnnual.Enabled = tlShowAnnualLeave
+
+ThisForm.chkPersonal.ControlSource = tcPersonalLeave
+ThisForm.chkPersonal.Enabled = tlShowPersonalLeave
+
+ThisForm.chkLongService.ControlSource = tcLongServiceLeave
+ThisForm.chkLongService.Enabled = tlShowLongServiceLeave   
+
+
+Comacc.OpenTable("setup")
+ThisForm.chkShift.ControlSource = tcShiftLeave
+ThisForm.chkShift.Enabled = tlShowShiftLeave AND setup.useshift
+ThisForm.chkShift.Caption = ALLTRIM(setup.udname2)
+
+ThisForm.chkOther.ControlSource = tcOtherLeave 
+ThisForm.chkOther.Enabled = tlShowOtherLeave AND setup.useother
+ThisForm.chkOther.Caption = ALLTRIM(setup.udname)
+
+ThisForm.chkRDO.ControlSource = tcRDO
+ThisForm.chkRDO.Enabled = tlShowRDO   
+
+ThisForm.chkSuperannuation.ControlSource = tcSuperAnnuation  
+ThisForm.chkSuperannuation.Enabled = tlShowSuperAnnuation 
+
+ThisForm.chkPayrollTax.ControlSource = tcPayrollTax 
+ThisForm.chkPayrollTax.Enabled = tlShowPayrollTax 
+
+ThisForm.chkWorkcover.ControlSource = tcWorkCover 
+ThisForm.chkWorkcover.Enabled = tlShowWorkCover
+
+* LS 20/09/2021 ES-6740 
+* override for Employer Superannuation type SG 
+IF "Employer Superannuation" $ tcPayType AND ALLTRIM(tcConType) = "SG" then
+		ThisForm.chkAnnual.Enabled = .F.
+		ThisForm.chkPersonal.Enabled = .F.
+		ThisForm.chkLongService.Enabled = .F.
+		ThisForm.chkRDO.Enabled = .F.
+		ThisForm.chkSuperannuation.Enabled = .F.
+ENDIF 
+
+	* override for Employee Superannuation type SS
+IF "Employee Superannuation" $ tcPayType AND ALLTRIM(tcConType) = "SS" then
+		replace &tcShiftLeave WITH .F.
+		replace &tcOtherLeave with .f.
+	ENDIF 
+
+ThisForm.BindControls = .T.
+
+ENDPROC
+PROCEDURE QueryUnload
+ThisForm.EscPress(.f.,.f.)
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46C2
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkAnnual
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Annual Leave"
+Left = 58
+Name = "chkAnnual"
+TabIndex = 2
+Top = 48
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46C4
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkLongService
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Long Service Leave"
+Left = 58
+Name = "chkLongService"
+TabIndex = 4
+Top = 96
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46BZ
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkOther
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Other Leave"
+Left = 58
+Name = "chkOther"
+TabIndex = 6
+Top = 144
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46BZ
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkPayrollTax
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Payroll Tax"
+Left = 250
+Name = "chkPayrollTax"
+TabIndex = 9
+Top = 72
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46C3
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkPersonal
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Personal Leave"
+Left = 58
+Name = "chkPersonal"
+TabIndex = 3
+Top = 72
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070YVJ6V
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkRDO
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "RDO"
+Left = 58
+Name = "chkRDO"
+TabIndex = 7
+Top = 168
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46C9
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkShift
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Shift Leave"
+Left = 58
+Name = "chkShift"
+TabIndex = 5
+Top = 120
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46BZ
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkSuperannuation
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "Superannuation"
+Left = 250
+Name = "chkSuperannuation"
+TabIndex = 8
+Top = 48
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46BZ
+[CLASS] ccheckbox
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] checkbox
+[OBJNAME] chkWorkcover
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Alignment = 0
+Caption = "WorkCover"
+Left = 250
+Name = "chkWorkcover"
+TabIndex = 10
+Top = 96
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46C1
+[CLASS] ccommandbutton
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] commandbutton
+[OBJNAME] cmdExit
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Caption = " E\<xit"
+Left = 166
+Name = "cmdExit"
+Picture = ..\..\..\shared\graphics\exit.bmp
+PicturePosition = 1
+TabIndex = 11
+Top = 204
+[END PROPERTIES]
+[START METHODS]
+PROCEDURE Click
+ThisForm.EscPress(.f.,.f.)
+ENDPROC
+[END METHODS]
+
+[ RECORD]
+[PLATFORM] WINDOWS 
+[UNIQUEID] _2070Y46CB
+[CLASS] clabel
+[CLASSLOC] ..\..\..\src\classes\comacc.vcx
+[BASECLASS] label
+[OBJNAME] lblHeading
+[PARENT] LIABILITIES
+[START PROPERTIES]
+Caption = "Add to gross liable for:"
+FontBold = .T.
+FontSize = 12
+Left = 12
+Name = "lblHeading"
+TabIndex = 1
+Top = 12
+[END PROPERTIES]
+
+[ RECORD]
+[PLATFORM] COMMENT 
+[UNIQUEID] RESERVED  
+[START PROPERTIES]
+Arial, 0, 9, 5, 15, 12, 32, 3, 0
+MS Sans Serif, 0, 10, 7, 16, 13, 14, 3, 0
+[END PROPERTIES]
+[EOF]

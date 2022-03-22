@@ -1,3 +1,4 @@
+
 PARAMETERS losmtpbridge, pcmailserver, plusessl, pcusername, pcpassword, pcsender, pcsenderemail, pcrecipient, pcsubject, pcmessage, pcattachment, plsendemailasync, pcreplyto, pnEmailType, peLicence
 LOCAL lcerror, lcLog, lcLicence
 
@@ -105,3 +106,6 @@ ELSE
 	RETURN .T.
 ENDIF
 
+LOCAL llFlag2 
+
+llFalg2 = .T.
